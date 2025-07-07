@@ -605,21 +605,18 @@
         document.addEventListener('DOMContentLoaded', () => {
             // Load saved data from localStorage or use default
             let mealData = JSON.parse(localStorage.getItem('mealPlanData')) || [
-                { day: 'Monday', lunch: 'Chole', dinner: 'Chicken Curry' },
-                { day: 'Tuesday', lunch: 'Egg Bhurji + Dal Makhni', dinner: 'Chana Brown' },
-                { day: 'Wednesday', lunch: 'Chilla', dinner: 'Egg Curry' },
-                { day: 'Thursday', lunch: 'Mushroom Curry', dinner: 'Chicken Curry' },
-                { day: 'Friday', lunch: 'Chana Brown', dinner: 'Paneer Curry' },
-                { day: 'Saturday', lunch: 'Egg Curry', dinner: 'Chole' },
-                { day: 'Sunday', lunch: 'Rajma', dinner: 'Palak Paneer' }
-            ];
+                { day: 'Monday', lunch: 'Egg Bhurji + Dal Makhni + Roti', dinner: 'Chicken Curry + Roti' },
+                { day: 'Tuesday', lunch: 'Chole + Rice', dinner: 'Chana Brown + Roti' },
+                { day: 'Wednesday', lunch: 'Egg Curry +Rice', dinner: 'Chilla' },
+                { day: 'Thursday', lunch: 'Egg Bhurji + Dal Makhni + Rice', dinner: 'Chicken Curry + Roti' },
+                { day: 'Friday', lunch: 'Chana Brown', dinner: 'Paneer + Roti' },
+                { day: 'Saturday', lunch: 'Egg Curry + Rice', dinner: 'Mushroom Curry + Roti' },
+            ]; 
 
             // Load meal suggestions or use default
             let mealSuggestions = JSON.parse(localStorage.getItem('mealSuggestions')) || [
                 { name: 'Masala Dosa', icon: '🥞' },
-                { name: 'Idli Sambar', icon: '🍚' },
-                { name: 'Uttapam', icon: '🥮' },
-                { name: 'Vada', icon: '🍩' },
+                { name: 'Poha', icon: '🍚' },
                 { name: 'Biryani', icon: '🍛' },
                 { name: 'Upma', icon: '🍲' },
                 { name: 'Poha', icon: '🍚' },
