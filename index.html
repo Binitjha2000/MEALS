@@ -785,10 +785,6 @@
                     
                     card.className = `card rounded-xl shadow-lg border p-6 flex flex-col ${isCurrentDay ? 'current-day' : 'bg-white border-gray-200'}`;
                     card.dataset.day = meal.day;
-
-                    const lunchDish = meal.lunch.includes('Curry') || meal.lunch.includes('Dal Makhni') ? `${meal.lunch} (with Roti/Rice)` : meal.lunch;
-                    const dinnerDish = meal.dinner.includes('Curry') || meal.dinner.includes('Dal Makhni') ? `${meal.dinner} (with Roti/Rice)` : meal.dinner;
-
                     card.innerHTML = `
                         <button class="edit-card-btn" onclick="editCard('${meal.day}')">✏️</button>
                         ${isCurrentDay ? '<div class="date-indicator">●</div>' : ''}
