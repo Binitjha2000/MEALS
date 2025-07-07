@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Meal Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: The application uses a card-based dashboard layout, with one card per day, which is more visually engaging and mobile-friendly than a simple table. The primary interaction is a set of filter buttons for each unique dish. Clicking a filter highlights the relevant days, allowing the user to quickly see when they are eating a specific meal. This structure was chosen to transform the static meal plan into a simple, interactive tool that helps with quick lookups and meal prep planning. The flow is straightforward: view the week at a glance, then filter to find specific meal days. -->
+    <!-- Visualization & Content Choices: The core information, the meal plan, is presented as a list of daily cards (Organize Goal). This is achieved with a responsive Tailwind CSS grid (HTML/CSS Method). The main interaction is filtering (Organize/Inform Goal). This is handled by filter buttons that, on click, apply CSS classes to highlight or fade the day cards (JavaScript Interaction). This method was chosen over a static table for its superior user experience and interactivity. Unicode characters are used as simple icons for visual distinction between lunch and dinner. NO SVG/Mermaid used. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-attachment: fixed;
+            color: #4a4a4a;
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        /* Animated background particles */
+        .bg-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+        
+        /* Glowing header */
+        .glow-text {
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { text-shadow: 0 0 20px rgba(255, 255, 255, 0.8); }
+            to { text-shadow: 0 0 30px rgba(255, 255, 255, 1), 0 0 40px rgba(255, 255, 255, 0.8); }
+        }
+        
+        .card {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-style: preserve-3d;
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .card:hover::before {
+            left: 100%;
+        }
+        
+        .card.highlight {
+            transform: translateY(-10px) scale(1.05) rotateX(5deg);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3), 0 0 0 1px rgba(234, 179, 8, 0.5);
+            background: rgba(255, 255, 255, 0.95);
+            border-color: #eab308;
+        }
+        
+        .card.fade {
+            opacity: 0.3;
+            transform: scale(0.95) translateY(10px);
+        }
+        
+        .filter-btn {
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .filter-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transition: width 0.3s, height 0.3s;
+            transform: translate(-50%, -50%);
+        }
+        
+        .filter-btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .filter-btn.active {
+            background: linear-gradient(45deg, #eab308, #f59e0b);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(234, 179, 8, 0.4);
+            transform: translateY(-2px);
+        }
+        
+        /* Meal icons with animation */
+        .meal-icon {
+            transition: transform 0.3s ease;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+        
+        .card:hover .meal-icon {
+            transform: scale(1.2) rotate(10deg);
+        }
+        
+        /* Progress indicator */
+        .progress-bar {
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 2px;
+            animation: progressPulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes progressPulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        
+        /* Floating action button */
+        .fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .fab:hover {
+            transform: scale(1.1) rotate(180deg);
+            box-shadow: 0 6px 30px rgba(0,0,0,0.4);
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+        }
+        
+        .tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .tooltip:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* Dark mode toggle */
+        .dark-mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 25px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .dark-mode-toggle::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 21px;
+            height: 21px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+        
+        .dark-mode-toggle.active {
+            background: #4f46e5;
+        }
+        
+        .dark-mode-toggle.active::before {
+            transform: translateX(25px);
+        }
+        
+        /* Current day highlighting */
+        .card.current-day {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            box-shadow: 0 15px 35px rgba(16, 185, 129, 0.4);
+            border-color: #10b981;
+        }
+        
+        .card.current-day h2 {
+            color: white;
+        }
+        
+        .card.current-day p {
+            color: white !important;
+        }
+        
+        /* Edit mode styles */
+        .card.edit-mode {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            box-shadow: 0 15px 35px rgba(245, 158, 11, 0.4);
+        }
+        
+        .card.edit-mode h2, .card.edit-mode p {
+            color: white !important;
+        }
+        
+        .edit-input {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 4px;
+        }
+        
+        .edit-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .edit-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        
+        .edit-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .save-btn {
+            background: #10b981;
+            color: white;
+        }
+        
+        .save-btn:hover {
+            background: #059669;
+        }
+        
+        .cancel-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        .cancel-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .edit-card-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            cursor: pointer;
+            font-size: 16px;
+            color: white;
+            transition: all 0.2s ease;
+        }
+        
+        .edit-card-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+        
+        /* Date indicator */
+        .date-indicator {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #10b981;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+        }
+        
+        /* Date and time display */
+        .datetime-display {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            border-radius: 12px;
+            padding: 12px 20px;
+            width: fit-content;
+            margin: 0 auto 20px;
+            color: white;
+            font-weight: 500;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            transform-style: preserve-3d;
+        }
+        
+        .datetime-display:hover {
+            transform: translateY(-5px) rotateX(5deg);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .date-text {
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+        }
+        
+        .time-text {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-top: -2px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* Storage controls */
+        .storage-controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .storage-btn {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .storage-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        /* Meal suggestions section */
+        .suggestions-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 40px;
+            margin-bottom: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .suggestions-title {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .suggestions-title::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 3px;
+            background: linear-gradient(90deg, #eab308, #f59e0b);
+            border-radius: 3px;
+        }
+        
+        .suggestions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+        }
+        
+        .suggestion-item {
+            position: relative;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            overflow: hidden;
+        }
+        
+        .suggestion-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .delete-suggestion-btn {
+            position: absolute;
+            right: 5px;
+            top: 5px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(255, 59, 59, 0.2);
+            border: none;
+            color: #ff3b3b;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: all 0.2s;
+        }
+        
+        .suggestion-item:hover .delete-suggestion-btn {
+            opacity: 1;
+        }
+        
+        .delete-suggestion-btn:hover {
+            background: rgba(255, 59, 59, 0.8);
+            color: white;
+            transform: scale(1.1);
+        }
+        
+        /* Success message */
+        .success-message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #10b981;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            z-index: 1001;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        
+        .success-message.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(20px);
+        }
+        
+        /* Responsive enhancements */
+        @media (max-width: 768px) {
+            .card {
+                margin-bottom: 20px;
+            }
+            
+            .fab {
+                bottom: 20px;
+                right: 20px;
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <!-- Animated background particles -->
+    <div class="bg-particles"></div>
+    
+    <!-- Dark mode toggle -->
+    <div class="dark-mode-toggle tooltip" data-tooltip="Toggle Dark Mode" onclick="toggleDarkMode()"></div>
+    
+    <!-- Success message -->
+    <div id="success-message" class="success-message">✅ Menu updated successfully!</div>
+    
+    <!-- Floating action button -->
+    <button class="fab tooltip" data-tooltip="Refresh Menu" onclick="refreshMenu()">🔄</button>
+
+    <div id="app" class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10">
+        <header class="text-center mb-8">
+            <h1 class="glow-text text-4xl sm:text-5xl font-bold text-white tracking-tight mb-4">Weekly Meal Plan</h1>
+            <div class="progress-bar w-32 mx-auto mb-4"></div>
+            <p class="mt-2 text-lg text-gray-100 max-w-2xl mx-auto">This interactive planner displays your meals for the week. Click on a dish name below to highlight the days you'll be having it.</p>
+        </header>
+
+        <div class="datetime-display" id="datetime-display">
+            <div class="date-text" id="date-text">Loading date...</div>
+            <div class="time-text" id="time-text">00:00:00</div>
+        </div>
+
+        <div class="storage-controls mb-6">
+            <button class="storage-btn" onclick="exportMealPlan()">
+                <span>💾</span> Export Meal Plan
+            </button>
+            <label class="storage-btn">
+                <span>📂</span> Import Meal Plan
+                <input type="file" class="file-input" onchange="importMealPlan(event)" accept=".json">
+            </label>
+            <button class="storage-btn" onclick="resetToDefault()">
+                <span>🔄</span> Reset to Default
+            </button>
+        </div>
+
+        <nav id="filters" class="flex flex-wrap justify-center gap-2 sm:gap-3 mb-10">
+        </nav>
+
+        <main id="meal-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-6 lg:gap-8">
+        </main>
+
+        <section class="suggestions-section">
+            <h2 class="suggestions-title">Additional Meal Ideas</h2>
+            <div class="suggestions-grid" id="suggestions-grid">
+                <!-- Suggestions will be loaded here -->
+            </div>
+            <div class="add-suggestion-form">
+                <input type="text" class="suggestion-input" id="new-suggestion" placeholder="Add a new meal item...">
+                <button class="suggestion-btn" onclick="addSuggestion()">Add Item</button>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load saved data from localStorage or use default
+            let mealData = JSON.parse(localStorage.getItem('mealPlanData')) || [
+                { day: 'Monday', lunch: 'Chole', dinner: 'Chicken Curry' },
+                { day: 'Tuesday', lunch: 'Egg Bhurji + Dal Makhni', dinner: 'Chana Brown' },
+                { day: 'Wednesday', lunch: 'Chilla', dinner: 'Egg Curry' },
+                { day: 'Thursday', lunch: 'Mushroom Curry', dinner: 'Chicken Curry' },
+                { day: 'Friday', lunch: 'Chana Brown', dinner: 'Paneer Curry' },
+                { day: 'Saturday', lunch: 'Egg Curry', dinner: 'Chole' },
+                { day: 'Sunday', lunch: 'Rajma', dinner: 'Palak Paneer' }
+            ];
+
+            // Load meal suggestions or use default
+            let mealSuggestions = JSON.parse(localStorage.getItem('mealSuggestions')) || [
+                { name: 'Masala Dosa', icon: '🥞' },
+                { name: 'Idli Sambar', icon: '🍚' },
+                { name: 'Uttapam', icon: '🥮' },
+                { name: 'Vada', icon: '🍩' },
+                { name: 'Biryani', icon: '🍛' },
+                { name: 'Upma', icon: '🍲' },
+                { name: 'Poha', icon: '🍚' },
+                { name: 'Pulao', icon: '🍚' }
+            ];
+
+            const grid = document.getElementById('meal-grid');
+            const filtersContainer = document.getElementById('filters');
+            let currentFilter = null;
+            let editingCard = null;
+
+            // Get current day of the week
+            function getCurrentDayOfWeek() {
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const today = new Date();
+                return days[today.getDay()];
+            }
+
+            // Save data to localStorage
+            function saveToStorage() {
+                localStorage.setItem('mealPlanData', JSON.stringify(mealData));
+                showSuccessMessage();
+            }
+
+            // Show success message
+            function showSuccessMessage() {
+                const message = document.getElementById('success-message');
+                message.classList.add('show');
+                setTimeout(() => {
+                    message.classList.remove('show');
+                }, 3000);
+            }
+            
+            // Default meal data
+            const defaultMealData = [
+                { day: 'Monday', lunch: 'Chole', dinner: 'Chicken Curry' },
+                { day: 'Tuesday', lunch: 'Egg Bhurji + Dal Makhni', dinner: 'Chana Brown' },
+                { day: 'Wednesday', lunch: 'Chilla', dinner: 'Egg Curry' },
+                { day: 'Thursday', lunch: 'Mushroom Curry', dinner: 'Chicken Curry' },
+                { day: 'Friday', lunch: 'Chana Brown', dinner: 'Paneer Curry' },
+                { day: 'Saturday', lunch: 'Egg Curry', dinner: 'Chole' },
+                { day: 'Sunday', lunch: 'Rajma', dinner: 'Palak Paneer' }
+            ];
+            
+            // Export meal plan as JSON file
+            function exportMealPlan() {
+                const dataStr = JSON.stringify(mealData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'meal-plan.json';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                const message = document.getElementById('success-message');
+                message.textContent = '✅ Meal plan exported successfully!';
+                message.classList.add('show');
+                setTimeout(() => {
+                    message.classList.remove('show');
+                }, 3000);
+            }
+            
+            // Import meal plan from JSON file
+            function importMealPlan(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        
+                        // Validate imported data
+                        if (!Array.isArray(importedData) || !importedData.length) {
+                            throw new Error('Invalid meal plan data format');
+                        }
+                        
+                        // Check if each item has the required properties
+                        const isValid = importedData.every(meal => 
+                            meal.day && meal.lunch && meal.dinner);
+                        
+                        if (!isValid) {
+                            throw new Error('Invalid meal plan data structure');
+                        }
+                        
+                        // Update meal data
+                        mealData = importedData;
+                        saveToStorage();
+                        
+                        // Re-render
+                        renderCards();
+                        renderFilters();
+                        
+                        const message = document.getElementById('success-message');
+                        message.textContent = '✅ Meal plan imported successfully!';
+                        message.classList.add('show');
+                    } catch (error) {
+                        alert('Error importing meal plan: ' + error.message);
+                    }
+                    
+                    // Reset file input
+                    event.target.value = '';
+                };
+                reader.onerror = function() {
+                    alert('Error reading file');
+                };
+                reader.readAsText(file);
+            }
+            
+            // Reset to default meal plan
+            function resetToDefault() {
+                if (confirm('Are you sure you want to reset to the default meal plan? This will erase your custom changes.')) {
+                    mealData = JSON.parse(JSON.stringify(defaultMealData)); // Deep copy
+                    saveToStorage();
+                    renderCards();
+                    renderFilters();
+                    
+                    const message = document.getElementById('success-message');
+                    message.textContent = '✅ Reset to default meal plan!';
+                    message.classList.add('show');
+                }
+            }
+            
+            // Make functions global for onclick handlers
+            window.exportMealPlan = exportMealPlan;
+            window.importMealPlan = importMealPlan;
+            window.resetToDefault = resetToDefault;
+
+            function getUniqueDishes() {
+                const dishes = new Set();
+                mealData.forEach(meal => {
+                    dishes.add(meal.lunch);
+                    dishes.add(meal.dinner);
+                });
+                return Array.from(dishes);
+            }
+
+            function renderCards() {
+                grid.innerHTML = '';
+                const currentDay = getCurrentDayOfWeek();
+                
+                mealData.forEach(meal => {
+                    const card = document.createElement('div');
+                    const isCurrentDay = meal.day === currentDay;
+                    
+                    card.className = `card rounded-xl shadow-lg border p-6 flex flex-col ${isCurrentDay ? 'current-day' : 'bg-white border-gray-200'}`;
+                    card.dataset.day = meal.day;
+
+                    const lunchDish = meal.lunch.includes('Curry') || meal.lunch.includes('Dal Makhni') ? `${meal.lunch} (with Roti/Rice)` : meal.lunch;
+                    const dinnerDish = meal.dinner.includes('Curry') || meal.dinner.includes('Dal Makhni') ? `${meal.dinner} (with Roti/Rice)` : meal.dinner;
+
+                    card.innerHTML = `
+                        <button class="edit-card-btn" onclick="editCard('${meal.day}')">✏️</button>
+                        ${isCurrentDay ? '<div class="date-indicator">●</div>' : ''}
+                        <h2 class="text-2xl font-bold mb-4 ${isCurrentDay ? 'text-white' : 'text-gray-800'}">${meal.day}</h2>
+                        <div class="space-y-4 flex-grow">
+                            <div class="flex items-start space-x-3">
+                                <span class="meal-icon text-2xl mt-1">☀️</span>
+                                <div class="flex-grow">
+                                    <p class="font-semibold ${isCurrentDay ? 'text-white' : 'text-gray-700'}">Lunch</p>
+                                    <p class="text-lg font-medium ${isCurrentDay ? 'text-white' : 'text-gray-900'}" data-meal="lunch">${lunchDish}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <span class="meal-icon text-2xl mt-1">🌙</span>
+                                <div class="flex-grow">
+                                    <p class="font-semibold ${isCurrentDay ? 'text-white' : 'text-gray-700'}">Dinner</p>
+                                    <p class="text-lg font-medium ${isCurrentDay ? 'text-white' : 'text-gray-900'}" data-meal="dinner">${dinnerDish}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            }
+            
+            // Edit card functionality
+            function editCard(day) {
+                if (editingCard) {
+                    cancelEdit();
+                }
+                
+                const card = document.querySelector(`[data-day="${day}"]`);
+                const meal = mealData.find(m => m.day === day);
+                editingCard = day;
+                
+                card.classList.add('edit-mode');
+                
+                const lunchElement = card.querySelector('[data-meal="lunch"]');
+                const dinnerElement = card.querySelector('[data-meal="dinner"]');
+                
+                const lunchValue = meal.lunch;
+                const dinnerValue = meal.dinner;
+                
+                lunchElement.innerHTML = `<input type="text" class="edit-input" value="${lunchValue}" data-field="lunch" placeholder="Enter lunch meal">`;
+                dinnerElement.innerHTML = `<input type="text" class="edit-input" value="${dinnerValue}" data-field="dinner" placeholder="Enter dinner meal">`;
+                
+                const editButtonsHtml = `
+                    <div class="edit-buttons">
+                        <button class="edit-btn save-btn" onclick="saveEdit('${day}')">💾 Save</button>
+                        <button class="edit-btn cancel-btn" onclick="cancelEdit()">❌ Cancel</button>
+                    </div>
+                `;
+                
+                card.querySelector('.space-y-4').insertAdjacentHTML('beforeend', editButtonsHtml);
+                
+                // Focus on first input
+                card.querySelector('.edit-input').focus();
+            }
+            
+            // Save edit
+            function saveEdit(day) {
+                const card = document.querySelector(`[data-day="${day}"]`);
+                const lunchInput = card.querySelector('[data-field="lunch"]');
+                const dinnerInput = card.querySelector('[data-field="dinner"]');
+                
+                const newLunch = lunchInput.value.trim();
+                const newDinner = dinnerInput.value.trim();
+                
+                if (!newLunch || !newDinner) {
+                    alert('Please fill in both lunch and dinner meals!');
+                    return;
+                }
+                
+                // Update meal data
+                const mealIndex = mealData.findIndex(m => m.day === day);
+                mealData[mealIndex].lunch = newLunch;
+                mealData[mealIndex].dinner = newDinner;
+                
+                // Save to localStorage
+                saveToStorage();
+                
+                // Re-render cards and filters
+                renderCards();
+                renderFilters();
+                
+                editingCard = null;
+            }
+            
+            // Cancel edit
+            function cancelEdit() {
+                if (editingCard) {
+                    renderCards();
+                    editingCard = null;
+                }
+            }
+            
+            // Make functions global for onclick handlers
+            window.editCard = editCard;
+            window.saveEdit = saveEdit;
+            window.cancelEdit = cancelEdit;
+            window.exportMealPlan = exportMealPlan;
+            window.importMealPlan = importMealPlan;
+            window.resetToDefault = resetToDefault;
+            window.addSuggestion = addSuggestion;
+            window.useSuggestion = useSuggestion;
+            window.deleteSuggestion = deleteSuggestion;
+
+            function renderFilters() {
+                const uniqueDishes = getUniqueDishes();
+                filtersContainer.innerHTML = '';
+                
+                const allButton = document.createElement('button');
+                allButton.className = 'filter-btn active font-medium py-3 px-6 rounded-full bg-gradient-to-r from-yellow-400 to-orange-400 text-white shadow-lg';
+                allButton.textContent = '✨ Show All';
+                allButton.dataset.filter = 'all';
+                filtersContainer.appendChild(allButton);
+
+                uniqueDishes.forEach(dish => {
+                    const button = document.createElement('button');
+                    button.className = 'filter-btn font-medium py-3 px-6 rounded-full bg-white bg-opacity-20 hover:bg-opacity-30 text-white shadow-lg backdrop-blur-sm';
+                    button.textContent = `🍽️ ${dish}`;
+                    button.dataset.filter = dish;
+                    filtersContainer.appendChild(button);
+                });
+
+                filtersContainer.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'BUTTON') {
+                        const filter = e.target.dataset.filter;
+                        
+                        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+                        document.querySelectorAll('.filter-btn').forEach(btn => {
+                            btn.classList.remove('bg-gradient-to-r', 'from-yellow-400', 'to-orange-400', 'text-white');
+                            btn.classList.add('bg-white', 'bg-opacity-20', 'text-white');
+                        });
+                        
+                        e.target.classList.add('active');
+                        e.target.classList.remove('bg-white', 'bg-opacity-20');
+                        e.target.classList.add('bg-gradient-to-r', 'from-yellow-400', 'to-orange-400', 'text-white');
+                        
+                        applyFilter(filter);
+                    }
+                });
+            }
+
+            function applyFilter(filter) {
+                const cards = document.querySelectorAll('.card');
+                if (filter === 'all') {
+                    cards.forEach(card => {
+                        card.classList.remove('highlight', 'fade');
+                    });
+                    return;
+                }
+
+                cards.forEach(card => {
+                    const day = card.dataset.day;
+                    const mealDay = mealData.find(m => m.day === day);
+                    if (mealDay.lunch === filter || mealDay.dinner === filter) {
+                        card.classList.add('highlight');
+                        card.classList.remove('fade');
+                    } else {
+                        card.classList.add('fade');
+                        card.classList.remove('highlight');
+                    }
+                });
+            }
+            
+            // Render meal suggestions
+            function renderSuggestions() {
+                // Reload from localStorage to ensure we have the latest data
+                mealSuggestions = JSON.parse(localStorage.getItem('mealSuggestions')) || mealSuggestions;
+                
+                const suggestionsGrid = document.getElementById('suggestions-grid');
+                suggestionsGrid.innerHTML = '';
+                
+                mealSuggestions.forEach((suggestion, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'suggestion-item';
+                    item.innerHTML = `
+                        <span class="suggestion-icon">${suggestion.icon}</span>
+                        <span>${suggestion.name}</span>
+                        <button class="delete-suggestion-btn" onclick="event.stopPropagation(); deleteSuggestion(${index})">×</button>
+                    `;
+                    item.onclick = () => useSuggestion(suggestion.name);
+                    
+                    suggestionsGrid.appendChild(item);
+                });
+            }
+            
+            // Add a new meal suggestion
+            function addSuggestion() {
+                const input = document.getElementById('new-suggestion');
+                const newSuggestion = input.value.trim();
+                
+                if (newSuggestion) {
+                    // Use a random icon from a predefined set
+                    const icons = ['🍲', '🍛', '🍜', '🍚', '🥘', '🍱', '🥗', '🥮', '🥞', '🥪', '🌮', '🌯'];
+                    const randomIcon = icons[Math.floor(Math.random() * icons.length)];
+                    
+                    // Add the new suggestion
+                    mealSuggestions.push({ name: newSuggestion, icon: randomIcon });
+                    
+                    // Save to localStorage
+                    localStorage.setItem('mealSuggestions', JSON.stringify(mealSuggestions));
+                    
+                    // Re-render
+                    renderSuggestions();
+                    
+                    // Clear input
+                    input.value = '';
+                    
+                    // Show success message
+                    const message = document.getElementById('success-message');
+                    message.textContent = `✅ Added "${newSuggestion}" to meal ideas!`;
+                    message.classList.add('show');
+                    setTimeout(() => {
+                        message.classList.remove('show');
+                    }, 3000);
+                }
+            }
+            
+            // Use a suggestion in the meal plan
+            function useSuggestion(suggestionName) {
+                if (editingCard) {
+                    cancelEdit();
+                }
+                
+                // Open edit mode for current day
+                const currentDay = getCurrentDayOfWeek();
+                editCard(currentDay);
+                
+                // If editing card is now open, populate the lunch field with the suggestion
+                setTimeout(() => {
+                    const lunchInput = document.querySelector(`[data-field="lunch"]`);
+                    if (lunchInput) {
+                        lunchInput.value = suggestionName;
+                        lunchInput.focus();
+                    }
+                }, 100);
+            }
+            
+            // Delete a meal suggestion
+            function deleteSuggestion(index) {
+                // Get the name for the message
+                const suggestionName = mealSuggestions[index]?.name || '';
+                
+                // Remove the suggestion at the specified index
+                mealSuggestions.splice(index, 1);
+                
+                // Save back to localStorage
+                localStorage.setItem('mealSuggestions', JSON.stringify(mealSuggestions));
+                
+                // Re-render the suggestions
+                renderSuggestions();
+                
+                // Show success message
+                const message = document.getElementById('success-message');
+                message.textContent = `✅ Removed "${suggestionName}" from meal ideas!`;
+                message.classList.add('show');
+                setTimeout(() => {
+                    message.classList.remove('show');
+                }, 3000);
+            }
+            
+            renderCards();
+            renderFilters();
+            renderSuggestions();
+            createBackgroundParticles();
+            updateDateTime();
+        });
+
+        // Create floating background particles
+        function createBackgroundParticles() {
+            const particlesContainer = document.querySelector('.bg-particles');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 6 + 's';
+                particle.style.animationDuration = (Math.random() * 3 + 3) + 's';
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        // Update date and time
+        function updateDateTime() {
+            const now = new Date();
+            
+            // Format date: Wednesday, July 8, 2025
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const dateStr = now.toLocaleDateString('en-US', dateOptions);
+            
+            // Format time: 14:30:45
+            const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+            const timeStr = now.toLocaleTimeString('en-US', timeOptions);
+            
+            // Update DOM
+            document.getElementById('date-text').textContent = dateStr;
+            document.getElementById('time-text').textContent = timeStr;
+            
+            // Update every second
+            setTimeout(updateDateTime, 1000);
+        }
+
+        // Dark mode toggle
+        function toggleDarkMode() {
+            const toggle = document.querySelector('.dark-mode-toggle');
+            toggle.classList.toggle('active');
+            // Add dark mode functionality here if needed
+        }            // Refresh menu with animation
+            function refreshMenu() {
+                const cards = document.querySelectorAll('.card');
+                cards.forEach((card, index) => {
+                    setTimeout(() => {
+                        card.style.transform = 'rotateY(180deg)';
+                        setTimeout(() => {
+                            card.style.transform = 'rotateY(0deg)';
+                        }, 200);
+                    }, index * 100);
+                });
+                
+                // Re-render to update current day
+                setTimeout(() => {
+                    renderCards();
+                    renderFilters();
+                    // Don't re-render suggestions here as it might reset them
+                }, cards.length * 100 + 500);
+            }
+    </script>
+
+</body>
+</html>
